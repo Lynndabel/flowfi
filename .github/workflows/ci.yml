@@ -42,13 +42,13 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: user
+          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
           POSTGRES_DB: flowfi_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -73,7 +73,7 @@ jobs:
           npx prisma db push --accept-data-loss --schema=prisma/schema.prisma
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/flowfi_test
+          DATABASE_URL: postgresql://postgres:password@127.0.0.1:5432/flowfi_test
 
       - name: Build
         run: npm run build
@@ -83,7 +83,7 @@ jobs:
         run: npm test
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://user:password@localhost:5432/flowfi_test
+          DATABASE_URL: postgresql://postgres:password@127.0.0.1:5432/flowfi_test
 
   contracts:
     name: Soroban Contracts CI
