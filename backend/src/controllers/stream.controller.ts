@@ -374,7 +374,7 @@ export const getStreamClaimableAmount = async (req: Request, res: Response) => {
 /**
  * Get user-level stream summary used by dashboard/profile cards.
  */
-export const getUserStreamSummary = async (req: Request, res: Response) => {
+export const getUserStreamSummary = async (req: Request<{ address: string }>, res: Response) => {
   try {
     const address = Array.isArray(req.params.address) ? req.params.address[0] : (req.params.address ?? '').trim();
     if (!address) {

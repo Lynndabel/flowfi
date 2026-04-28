@@ -193,7 +193,18 @@ export class SorobanEventWorker {
     let lastCursor: string | null = state.lastCursor;
     let lastLedger: number = state.lastLedger;
 
-    for (const event of response.events) {
+    // Sort events so that 'stream_created' events are processed first in the batch.
+    // This ensures that subsequent events (like 'fee_collected') that depend on
+    // the stream existing in the DB can find it.
+    const sortedEvents = [...response.events].sort((a, b) => {
+      const aType = a.topic[0] ? decodeSymbol(a.topic[0]) : '';
+      const bType = b.topic[0] ? decodeSymbol(b.topic[0]) : '';
+      if (aType === 'stream_created' && bType !== 'stream_created') return -1;
+      if (bType === 'stream_created' && aType !== 'stream_created') return 1;
+      return 0;
+    });
+
+    for (const event of sortedEvents) {
       // Only process events from successful contract calls.
       if (!event.inSuccessfulContractCall) continue;
 
@@ -695,7 +706,7 @@ export class SorobanEventWorker {
     });
 
     // Broadcast to admin channel for treasury reporting
-    sseService.broadcast('stream.fee_collected', {
+    sseService.broadcastToAdmin('stream.fee_collected', {
       streamId,
       treasury,
       feeAmount,
@@ -703,7 +714,7 @@ export class SorobanEventWorker {
       transactionHash: event.txHash,
       ledger: event.ledger,
       timestamp,
-    }, (client) => client.subscriptions.has('admin') || client.subscriptions.has('*'));
+    });
   }
 
   private async handleStreamPaused(
