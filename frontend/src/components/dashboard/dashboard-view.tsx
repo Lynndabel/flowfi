@@ -25,7 +25,8 @@ import {
   isExpectedNetwork,
   type WalletSession,
 } from "@/lib/wallet";
-import { isValidStellarPublicKey } from "@/lib/stellar";
+import { shortenPublicKey } from "@/lib/utils";
+import { toStroops } from "@/utils/amount";
 import {
   createStream as sorobanCreateStream,
   topUpStream as sorobanTopUp,

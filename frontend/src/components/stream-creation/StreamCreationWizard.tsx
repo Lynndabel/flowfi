@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
+import { hasValidPrecision, toStroops } from "@/utils/amount";
 import { Stepper } from "../ui/Stepper";
 import { Button } from "../ui/Button";
 import { RecipientStep } from "./RecipientStep";
@@ -258,6 +259,8 @@ export const StreamCreationWizard: React.FC<StreamCreationWizardProps> = ({
           const amount = parseFloat(formData.amount);
           if (isNaN(amount) || amount <= 0) {
             newErrors.amount = "Amount must be a positive number";
+          } else if (!hasValidPrecision(formData.amount, 7)) {
+            newErrors.amount = "Amount exceeds maximum precision (7 decimal places)";
           } else if (walletBalance) {
             const available = parseFloat(walletBalance);
             if (!isNaN(available) && amount > available) {

@@ -5,7 +5,7 @@ import { useWallet } from '@/context/wallet-context';
 import { BackendStreamEvent } from '@/lib/api-types';
 import { downloadCSV } from '@/utils/csvExport';
 import toast from 'react-hot-toast';
-import { fromStroops } from '@/utils/amount';
+import { fromStroops, hasValidPrecision } from '@/utils/amount';
 
 interface StreamData extends Record<string, unknown> {
     id: string;
@@ -59,7 +59,7 @@ const Dashboard: React.FC = () => {
 
     const handleTopUp = (streamId: string) => {
         const amount = prompt(`Enter amount to add to stream ${streamId}:`);
-        if (amount && parseFloat(amount) > 0) {
+        if (amount && parseFloat(amount) > 0 && hasValidPrecision(amount, 7)) {
             console.log(`Adding ${amount} funds to stream ${streamId}`);
             // TODO: Integrate with Soroban contract's top_up_stream function
             toast.success(`Successfully added ${amount} to stream ${streamId}`);

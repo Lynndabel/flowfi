@@ -14,6 +14,7 @@ import {
   topUpStream,
   toSorobanErrorMessage,
 } from "@/lib/soroban";
+import { fromStroops, toStroops, hasValidPrecision, formatStreamRate } from "@/utils/amount";
 import type { WalletSession } from "@/lib/wallet";
 
 interface StreamDetail {
@@ -155,10 +156,15 @@ export default function StreamDetailsPage() {
       return;
     }
 
+    if (!hasValidPrecision(topUpAmount, 7)) {
+      toast.error("Amount exceeds maximum precision (7 decimal places)");
+      return;
+    }
+
     try {
       await topUpStream(session, {
         streamId: BigInt(streamId),
-        amount: BigInt(parseFloat(topUpAmount) * 1e7), // Convert to stroops
+        amount: toStroops(topUpAmount, 7),
       });
       toast.success("Stream topped up successfully!");
       setShowTopUp(false);
@@ -190,8 +196,8 @@ export default function StreamDetailsPage() {
     );
   }
 
-  const deposited = parseFloat(stream.depositedAmount) / 1e7;
-  const withdrawn = parseFloat(stream.withdrawnAmount) / 1e7;
+  const deposited = parseFloat(fromStroops(BigInt(stream.depositedAmount), 7));
+  const withdrawn = parseFloat(fromStroops(BigInt(stream.withdrawnAmount), 7));
   const claimable = deposited - withdrawn;
   const percentage = Math.round((withdrawn / deposited) * 100);
 
@@ -248,7 +254,7 @@ export default function StreamDetailsPage() {
             </div>
             <div style={{ textAlign: "right" }}>
               <p style={{ margin: "0.2rem 0", fontSize: "0.9rem" }}>
-                Rate: {(parseFloat(stream.ratePerSecond) / 1e7).toFixed(7)} / sec
+                Rate: {formatStreamRate(BigInt(stream.ratePerSecond), 7)}
               </p>
               <p style={{ margin: "0.2rem 0", fontSize: "0.9rem" }}>
                 Started: {new Date(stream.startTime * 1000).toLocaleDateString()}
