@@ -133,7 +133,6 @@ export class SorobanEventWorker {
       logger.error('[SorobanWorker] Manual poll error:', err);
     }
   }
-  }
 
   // ─── Internal ──────────────────────────────────────────────────────────────
 
