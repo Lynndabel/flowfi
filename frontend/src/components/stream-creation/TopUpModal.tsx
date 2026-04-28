@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * TopUpModal.tsx
+ * TopUpModal.tsx 
  *
  * Replaces the prompt() / alert() in dashboard-view.tsx handleTopUp.
  * Collects an amount, shows a confirmation summary, and calls onConfirm.
