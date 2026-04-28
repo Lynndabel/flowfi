@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import logger from '../logger.js';
 import { claimableAmountService } from '../services/claimable.service.js';
+import { getStreamFromChain, getClaimableFromChain, isStale } from '../services/sorobanService.js';
 
 /**
  * Create a new stream (stub for on-chain indexing)
@@ -92,7 +93,20 @@ export const getStream = async (req: Request, res: Response) => {
     });
 
     if (!stream) {
-      return res.status(404).json({ error: 'Stream not found' });
+      // Fallback: try live RPC
+      const chainStream = await getStreamFromChain(parsedStreamId);
+      if (!chainStream) {
+        return res.status(404).json({ error: 'Stream not found' });
+      }
+      return res.status(200).json({ ...chainStream, source: 'chain' });
+    }
+
+    // If DB data is stale, attempt live RPC fallback
+    if (isStale(stream.updatedAt)) {
+      const chainStream = await getStreamFromChain(parsedStreamId);
+      if (chainStream) {
+        return res.status(200).json({ ...stream, ...chainStream, source: 'chain' });
+      }
     }
 
     return res.status(200).json(stream);
@@ -192,7 +206,34 @@ export const getStreamClaimableAmount = async (req: Request, res: Response) => {
     });
 
     if (!stream) {
+      // Fallback: try live RPC for claimable amount
+      const chainClaimable = await getClaimableFromChain(parsedStreamId);
+      if (chainClaimable !== null) {
+        return res.status(200).json({
+          streamId: parsedStreamId,
+          claimableAmount: chainClaimable,
+          actionable: BigInt(chainClaimable) > 0n,
+          calculatedAt: Math.floor(Date.now() / 1000),
+          cached: false,
+          source: 'chain',
+        });
+      }
       return res.status(404).json({ error: 'Stream not found' });
+    }
+
+    // If DB data is stale, use live RPC
+    if (isStale(stream.updatedAt)) {
+      const chainClaimable = await getClaimableFromChain(parsedStreamId);
+      if (chainClaimable !== null) {
+        return res.status(200).json({
+          streamId: parsedStreamId,
+          claimableAmount: chainClaimable,
+          actionable: BigInt(chainClaimable) > 0n,
+          calculatedAt: Math.floor(Date.now() / 1000),
+          cached: false,
+          source: 'chain',
+        });
+      }
     }
 
     const result = claimableAmountService.getClaimableAmount(stream, requestedAt);

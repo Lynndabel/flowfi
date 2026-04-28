@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { subscribe } from '../../controllers/sse.controller.js';
 import { sseService } from '../../services/sse.service.js';
+import { requireAuth } from '../../middleware/auth.js';
 
 const router = Router();
 
@@ -78,7 +79,7 @@ const router = Router();
  *       400:
  *         description: Invalid subscription parameters
  */
-router.get('/subscribe', subscribe);
+router.get('/subscribe', requireAuth, subscribe);
 
 /**
  * @openapi

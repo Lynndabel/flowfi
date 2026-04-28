@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express';
 import { sseService } from '../services/sse.service.js';
+import { prisma } from '../lib/prisma.js';
+import type { AuthenticatedRequest } from '../types/auth.types.js';
 import { z } from 'zod';
 
 const subscribeSchema = z.object({
   streams: z.array(z.string()).optional().default([]),
-  users: z.array(z.string()).optional().default([]),
   all: z.boolean().optional().default(false),
 });
 
@@ -14,16 +15,29 @@ export const subscribe = (req: Request, res: Response) => {
   }
 
   try {
-    const { streams, users, all } = subscribeSchema.parse(req.query);
-    
-    const subscriptions: string[] = [];
-    
+    const { publicKey } = (req as AuthenticatedRequest).user;
+    const { streams, all } = subscribeSchema.parse(req.query);
+
+    // Scope: only streams where the authenticated user is sender or recipient
+    const ownedStreams = await prisma.stream.findMany({
+      where: { OR: [{ sender: publicKey }, { recipient: publicKey }] },
+      select: { streamId: true },
+    });
+    const ownedIds = new Set(ownedStreams.map((s) => String(s.streamId)));
+
+    let subscriptions: string[];
     if (all) {
-      subscriptions.push('*');
+      // "all" still scoped to the user's own streams
+      subscriptions = [...ownedIds];
+    } else if (streams.length > 0) {
+      // Only allow subscribing to streams the user owns
+      subscriptions = streams.filter((id) => ownedIds.has(id));
     } else {
-      subscriptions.push(...streams);
-      subscriptions.push(...users.map(u => `user:${u}`));
+      subscriptions = [...ownedIds];
     }
+
+    // Always add user-scoped subscription key
+    subscriptions.push(`user:${publicKey}`);
 
     const clientId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 

@@ -1,0 +1,101 @@
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { requireAdmin } from '../../middleware/auth.js';
+import {
+  getIndexerStatus,
+  resetIndexer,
+  replayFromLedger,
+} from '../../services/indexerService.js';
+
+const router = Router();
+
+// All admin routes require admin JWT
+router.use(requireAdmin);
+
+/**
+ * @openapi
+ * /v1/admin/indexer/status:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Get indexer status
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200:
+ *         description: Indexer status
+ */
+router.get('/indexer/status', async (req: Request, res: Response) => {
+  try {
+    const status = await getIndexerStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch indexer status' });
+  }
+});
+
+/**
+ * @openapi
+ * /v1/admin/indexer/reset:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Reset indexer lastProcessedLedger
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ledger]
+ *             properties:
+ *               ledger:
+ *                 type: integer
+ *     responses:
+ *       200:
+ *         description: Reset successful
+ */
+router.post('/indexer/reset', async (req: Request, res: Response) => {
+  const ledger = Number(req.body?.ledger);
+  if (!Number.isInteger(ledger) || ledger < 0) {
+    res.status(400).json({ error: 'ledger must be a non-negative integer' });
+    return;
+  }
+  try {
+    await resetIndexer(ledger);
+    res.json({ ok: true, lastLedger: ledger });
+  } catch (err) {
+    res.status(500).json({ error: 'Reset failed' });
+  }
+});
+
+/**
+ * @openapi
+ * /v1/admin/indexer/replay:
+ *   post:
+ *     tags: [Admin]
+ *     summary: Replay events from a given ledger (idempotent)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: from_ledger
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       202:
+ *         description: Replay started
+ */
+router.post('/indexer/replay', async (req: Request, res: Response) => {
+  const fromLedger = Number(req.query.from_ledger);
+  if (!Number.isInteger(fromLedger) || fromLedger < 0) {
+    res.status(400).json({ error: 'from_ledger must be a non-negative integer' });
+    return;
+  }
+  try {
+    await replayFromLedger(fromLedger);
+    res.status(202).json({ ok: true, replayingFrom: fromLedger });
+  } catch (err) {
+    res.status(500).json({ error: 'Replay failed' });
+  }
+});
+
+export default router;
