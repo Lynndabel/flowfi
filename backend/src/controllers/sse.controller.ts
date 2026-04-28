@@ -9,6 +9,7 @@ const subscribeSchema = z.object({
   all: z.boolean().optional().default(false),
 });
 
+
 function getClientIp(req: Request): string {
   const forwarded = req.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded.trim().length > 0) {

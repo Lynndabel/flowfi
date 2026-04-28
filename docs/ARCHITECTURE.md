@@ -2,7 +2,19 @@
 
 This document explains how FlowFi moves data from on-chain contract events into API responses and real-time frontend updates.
 
-## High-Level Pipeline
+# FlowFi Architecture
+
+This document explains how FlowFi moves data from on-chain contract events into API responses and real-time frontend updates.
+
+## High-Level Overview
+
+```mermaid
+flowchart LR
+    Contract[Stream Contract (Soroban WASM)] --> Indexer[Soroban Event Indexer]
+    Indexer --> DB[(Postgres DB)]
+    DB --> API[Backend API (Express + SSE)]
+    API --> UI[Frontend (Next.js)]
+    UI --> API
 
 ```mermaid
 flowchart LR

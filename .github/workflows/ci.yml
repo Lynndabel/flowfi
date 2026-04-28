@@ -116,3 +116,30 @@ jobs:
       - name: Run Contract Tests
         run: cargo test
         working-directory: contracts
+
+      - name: Install Stellar CLI
+        run: |
+          curl -fsSL https://github.com/stellar/stellar-cli/raw/main/install.sh | sh -s -- --install-deps
+        shell: bash
+
+      - name: Optimize WASM files
+        run: |
+          set -euo pipefail
+          WASMS=$(find contracts/target -type f -name "*.wasm" -print)
+          if [ -z "$WASMS" ]; then
+            echo "No wasm files found"
+            exit 1
+          fi
+          for w in $WASMS; do
+            out="${w%%.wasm}.optimized.wasm"
+            echo "Optimizing $w -> $out"
+            stellar contract optimize --wasm "$w" --wasm-out "$out"
+          done
+        shell: bash
+
+      - name: Upload optimized WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimized-wasm
+          path: |
+            contracts/target/**/**/*.optimized.wasm

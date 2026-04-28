@@ -1,133 +1,138 @@
-# Development Onboarding
+````md
+# Development Guide
 
 This guide is intended to let a new contributor run the full FlowFi stack from a fresh clone.
+
+---
 
 ## Prerequisites
 
 Required:
 
-1. Node.js 20.x and npm
-1. Rust toolchain (rustup + cargo)
-1. PostgreSQL 14+
+- Rust toolchain (stable via rustup)
+- Node.js 20+
+- npm
+- PostgreSQL 14+
+- Docker & Docker Compose (recommended for local infra)
+- Stellar CLI / Soroban CLI (https://github.com/stellar/stellar-cli)
 
-Recommended:
+Optional:
 
-1. Stellar CLI / Soroban CLI
-1. Redis 7+ (optional for multi-instance SSE testing)
-1. Docker + Docker Compose (easiest local infra)
+- Redis 7+ (for multi-instance SSE testing)
 
-## 1) Clone and Install
+---
+
+## Quick Start (Recommended)
+
+### 1. Clone repository
 
 ```bash
 git clone https://github.com/LabsCrypt/flowfi.git
 cd flowfi
-```
+````
 
-Install root helpers (if any):
+---
 
-```bash
-npm install
-```
-
-Install backend + frontend dependencies:
-
-```bash
-cd backend && npm install
-cd ../frontend && npm install
-cd ..
-```
-
-## 2) Start Infrastructure
-
-### Option A: Docker (recommended)
+### 2. Start infrastructure
 
 ```bash
 docker compose up -d postgres
 ```
 
-If your compose file includes Redis and you want to test pub/sub SSE fanout:
+(Optional for SSE fanout testing)
 
 ```bash
 docker compose up -d redis
 ```
 
-### Option B: Local services
+---
 
-Run PostgreSQL locally and create/update your database for `DATABASE_URL`.
-Run Redis locally only if needed.
-
-## 3) Configure Environment
-
-Create backend env file (example values):
+### 3. Backend setup
 
 ```bash
 cd backend
-cp .env.example .env 2>/dev/null || true
+npm install
+cp .env.example .env
 ```
 
-Set at least:
+Configure `.env`:
 
-1. `DATABASE_URL=postgresql://...`
-1. `JWT_SECRET=...`
-1. `STELLAR_NETWORK=testnet`
-1. `MAX_SSE_CONNECTIONS=10000`
+* DATABASE_URL
+* JWT_SECRET
+* STELLAR_NETWORK=testnet
+* REDIS_URL (optional)
 
-Optional Redis for multi-instance SSE:
-
-1. `REDIS_URL=redis://localhost:6379`
-
-Return to repo root after editing env.
-
-## 4) Prepare Database
+Run database setup:
 
 ```bash
-cd backend
 npm run prisma:generate
 npm run prisma:migrate
 ```
 
-Optional seed:
+Start backend:
 
 ```bash
-npm run prisma:seed
+npm run dev
 ```
 
-## 5) Build and Run Contracts (optional for UI/API iteration, required for full chain flow)
+Backend runs at:
+
+* [http://localhost:3001/v1](http://localhost:3001/v1)
+* [http://localhost:3001/health](http://localhost:3001/health)
+
+---
+
+### 4. Frontend setup
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend:
+
+* [http://localhost:3000](http://localhost:3000)
+
+---
+
+### 5. Contracts (optional)
 
 ```bash
 cd contracts
 cargo build --target wasm32-unknown-unknown --release
+cargo test
 ```
 
-If deploying/testing contracts with CLI, ensure Stellar CLI is configured for testnet.
+---
 
-## 6) Run Backend
+## Full Stack Setup (Detailed Mode)
+
+### Backend
 
 ```bash
 cd backend
+npm ci
 npm run dev
 ```
 
-Backend endpoints:
-
-1. API base: `http://localhost:3001/v1`
-1. Swagger UI: `http://localhost:3001/api-docs`
-1. Health: `http://localhost:3001/health`
-
-## 7) Run Frontend
-
-In a second terminal:
+### Frontend
 
 ```bash
 cd frontend
+npm ci
 npm run dev
 ```
 
-Frontend app:
+### Database
 
-1. `http://localhost:3000`
+```bash
+docker compose up -d postgres
+```
 
-## 8) Run Tests
+---
+
+## Running Tests
 
 Backend:
 
@@ -136,65 +141,109 @@ cd backend
 npm test
 ```
 
-Frontend lint:
+Frontend:
 
 ```bash
 cd frontend
 npm run lint
 ```
 
+Contracts:
+
+```bash
+cd contracts
+cargo test
+```
+
+---
+
+## Testnet vs Local Mode
+
+Configure in `.env`:
+
+* `STELLAR_NETWORK=testnet`
+* `SANDBOX_MODE_ENABLED=true` (optional)
+* `STELLAR_HORIZON_URL` (if needed)
+
+---
+
 ## Common Issues
 
 ### Indexer not syncing
 
-Symptoms:
+* Ensure worker/indexer is running
+* Confirm correct Stellar network (testnet/mainnet)
+* Check DB cursor/state
+* Review logs for RPC/Horizon errors
 
-1. Streams created on-chain do not appear in dashboard.
+---
 
-Checks:
+### SSE issues
 
-1. Confirm backend worker/indexer is running.
-1. Verify Stellar network config (`testnet` vs `mainnet`) matches your transactions.
-1. Verify `IndexerState` row updates in DB.
-1. Check backend logs for RPC/Horizon throttling or cursor errors.
+* Verify JWT token validity
+* Check `/v1/events/stats`
+* Ensure Redis is running (multi-instance mode)
+* Confirm connection limits are not exceeded
 
-### SSE drops or reconnect loops
+---
 
-Symptoms:
+### Auth failures (401/403)
 
-1. Live updates stop; browser reconnects repeatedly.
+* Ensure wallet signature matches public key
+* Verify `JWT_SECRET`
+* Confirm Bearer token is included
 
-Checks:
+---
 
-1. Verify JWT is valid and unexpired.
-1. Check `/v1/events/stats` for capacity limits.
-1. Confirm per-IP limit not exceeded (6th SSE connection returns 429).
-1. In multi-instance deployments, ensure Redis pub/sub connectivity on all instances.
+### Database migration issues
 
-### Auth errors (401/403)
+* Check `DATABASE_URL`
+* Run `prisma generate`
+* Reset DB if schema drift occurs
 
-Symptoms:
+---
 
-1. `Unauthorized` during subscribe or protected endpoint calls.
+## Suggested Day-1 Flow
 
-Checks:
+1. Start Postgres (and Redis if needed)
+2. Run backend migrations
+3. Start backend
+4. Start frontend
+5. Create a stream and verify SSE updates
 
-1. Sign challenge using the same wallet/public key you verify.
-1. Ensure backend `JWT_SECRET` is stable across restarts if testing long sessions.
-1. Confirm `Authorization: Bearer <token>` header is present.
+---
 
-### Prisma or DB migration failures
+## Legacy Quick Setup (Minimal)
 
-Checks:
+```bash
+docker compose up -d
+cd backend && npm ci && npm run dev
+cd frontend && npm ci && npm run dev
+```
 
-1. Ensure `DATABASE_URL` points to a reachable DB.
-1. Reset local DB and rerun migrations if schema drift occurred.
-1. Regenerate Prisma client after schema changes.
+---
 
-## Suggested Day-1 Workflow
+## Contracts Build Only
 
-1. Start Postgres (and optionally Redis).
-1. Run backend migrations.
-1. Start backend and open Swagger.
-1. Start frontend and connect wallet.
-1. Create a stream and verify updates via dashboard + SSE.
+```bash
+cd contracts
+cargo build --target wasm32-unknown-unknown --release
+```
+
+---
+
+## Links
+
+* Architecture: `ARCHITECTURE.md`
+* Backend: `backend/`
+* Frontend: `frontend/`
+* Contracts: `contracts/stream_contract`
+
+```
+
+---
+
+If you want next-level polish, I can turn this into:
+- a **Makefile / task runner setup (one-command dev start)**
+- or a **Dockerized full-stack dev environment (zero manual setup)**
+```
