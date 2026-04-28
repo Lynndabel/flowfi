@@ -19,7 +19,7 @@ interface SSECapacityCheckResult {
   message?: string;
 }
 
-class SSEService {
+export class SSEService {
   private clients: Map<string, SSEClient> = new Map();
   private readonly ipConnectionCounts: Map<string, number> = new Map();
   private shuttingDown = false;
@@ -151,6 +151,13 @@ class SSEService {
       getPublisher()?.publish(`sse:user:${publicKey}`, JSON.stringify({ event, data }));
     } else {
       this._localBroadcastToUser(publicKey, event, data);
+    }
+  }
+
+  broadcastToAdmin(event: string, data: unknown): void {
+    const adminKey = process.env.ADMIN_PUBLIC_KEY;
+    if (adminKey) {
+      this.broadcastToUser(adminKey, event, data);
     }
   }
 

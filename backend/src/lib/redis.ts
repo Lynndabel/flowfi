@@ -1,5 +1,4 @@
-import type { Redis } from 'ioredis';
-import RedisClass from 'ioredis';
+import { Redis } from 'ioredis';
 import logger from '../logger.js';
 
 const REDIS_URL = process.env.REDIS_URL;
@@ -21,7 +20,7 @@ export function isRedisAvailable(): boolean {
 }
 
 function makeClient(url: string): Redis {
-  return new RedisClass(url, {
+  return new Redis(url, {
     maxRetriesPerRequest: 3,
     retryStrategy: (times: number) =>
       times > 3 ? null : Math.min(times * 200, 2000),

@@ -31,7 +31,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
   try {
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    const [activeCount, totalCount, cancelledCount, completedCount, eventsLast24h, indexerState] =
+    const [activeCount, totalCount, cancelledCount, completedCount, eventsLast24h, indexerState, feeEvents] =
       await Promise.all([
         prisma.stream.count({ where: { isActive: true } }),
         prisma.stream.count(),
@@ -43,7 +43,43 @@ router.get('/metrics', async (_req: Request, res: Response) => {
         }),
         prisma.streamEvent.count({ where: { createdAt: { gte: since24h } } }),
         prisma.indexerState.findUnique({ where: { id: 'singleton' } }),
+        prisma.streamEvent.findMany({
+          where: { eventType: 'FEE_COLLECTED' },
+          select: { amount: true, metadata: true, createdAt: true },
+        }),
       ]);
+
+    const fees = {
+      totalByToken: {} as Record<string, string>,
+      last24hByToken: {} as Record<string, string>,
+    };
+
+    const totalFeesMap: Record<string, bigint> = {};
+    const last24hFeesMap: Record<string, bigint> = {};
+
+    for (const event of feeEvents) {
+      try {
+        const metadata = JSON.parse(event.metadata || '{}');
+        const token = metadata.token;
+        if (!token) continue;
+
+        const amount = BigInt(event.amount || '0');
+        totalFeesMap[token] = (totalFeesMap[token] || 0n) + amount;
+
+        if (event.createdAt >= since24h) {
+          last24hFeesMap[token] = (last24hFeesMap[token] || 0n) + amount;
+        }
+      } catch (err) {
+        logger.warn('Failed to parse fee event metadata:', err);
+      }
+    }
+
+    fees.totalByToken = Object.fromEntries(
+      Object.entries(totalFeesMap).map(([token, amount]) => [token, amount.toString()])
+    );
+    fees.last24hByToken = Object.fromEntries(
+      Object.entries(last24hFeesMap).map(([token, amount]) => [token, amount.toString()])
+    );
 
     const nowSec = Math.floor(Date.now() / 1000);
     const lagSeconds = indexerState
@@ -61,6 +97,7 @@ router.get('/metrics', async (_req: Request, res: Response) => {
         },
       },
       events: { last24h: eventsLast24h },
+      fees,
       sse: { activeConnections: sseService.getClientCount() },
       indexer: {
         lastLedger: indexerState?.lastLedger ?? 0,

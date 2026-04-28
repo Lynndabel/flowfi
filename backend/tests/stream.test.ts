@@ -122,7 +122,7 @@ describe('GET /v1/users/:address/summary', () => {
   });
 
   it('returns all-zero summary for addresses with no streams', async () => {
-    prisma.stream.findMany
+    (prisma.stream.findMany as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
@@ -142,7 +142,7 @@ describe('GET /v1/users/:address/summary', () => {
   });
 
   it('returns accurate outgoing/incoming aggregates and claimable sum', async () => {
-    prisma.stream.findMany
+    (prisma.stream.findMany as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([
         { withdrawnAmount: '30', isActive: true },
         { withdrawnAmount: '20', isActive: false },
@@ -184,7 +184,7 @@ describe('GET /v1/users/:address/summary', () => {
   });
 
   it('caches summary results for repeated requests within TTL', async () => {
-    prisma.stream.findMany
+    (prisma.stream.findMany as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([{ withdrawnAmount: '1', isActive: true }])
       .mockResolvedValueOnce([]);
 

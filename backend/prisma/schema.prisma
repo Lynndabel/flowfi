@@ -63,7 +63,7 @@ model IndexerState {
 model StreamEvent {
   id              String   @id @default(uuid())
   streamId        Int      // Reference to on-chain stream ID
-  eventType       String   // EventType: "CREATED", "TOPPED_UP", "WITHDRAWN", "CANCELLED", "COMPLETED"
+  eventType       String   // EventType: "CREATED", "TOPPED_UP", "WITHDRAWN", "CANCELLED", "COMPLETED", "FEE_COLLECTED"
   amount          String?  // Amount involved in the event (for top-ups, withdrawals)
   transactionHash String   // Stellar transaction hash
   ledgerSequence  Int      // Ledger sequence number
