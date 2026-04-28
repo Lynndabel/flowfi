@@ -193,6 +193,9 @@ export class SorobanEventWorker {
     let lastCursor: string | null = state.lastCursor;
     let lastLedger: number = state.lastLedger;
 
+    // Sort events so that 'stream_created' events are processed first in the batch.
+    // This ensures that subsequent events (like 'fee_collected') that depend on
+    // the stream existing in the DB can find it.
     const sortedEvents = [...response.events].sort((a, b) => {
       const aType = a.topic[0] ? decodeSymbol(a.topic[0]) : '';
       const bType = b.topic[0] ? decodeSymbol(b.topic[0]) : '';
@@ -593,6 +596,7 @@ export class SorobanEventWorker {
       },
     });
 
+    // Broadcast to admin channel for treasury reporting
     sseService.broadcastToAdmin('stream.fee_collected', {
       streamId,
       treasury,

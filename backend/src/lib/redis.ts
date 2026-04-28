@@ -1,17 +1,17 @@
-import { Redis } from 'ioredis';
+const Redis = require('ioredis');
 import logger from '../logger.js';
 
 const REDIS_URL = process.env.REDIS_URL;
 
-let _publisher: Redis | null = null;
-let _subscriber: Redis | null = null;
+let _publisher: typeof Redis | null = null;
+let _subscriber: typeof Redis | null = null;
 let _available = false;
 
-export function getPublisher(): Redis | null {
+export function getPublisher(): typeof Redis | null {
   return _publisher;
 }
 
-export function getSubscriber(): Redis | null {
+export function getSubscriber(): typeof Redis | null {
   return _subscriber;
 }
 
@@ -19,7 +19,7 @@ export function isRedisAvailable(): boolean {
   return _available;
 }
 
-function makeClient(url: string): Redis {
+function makeClient(url: string): typeof Redis {
   return new Redis(url, {
     maxRetriesPerRequest: 3,
     retryStrategy: (times: number) =>
