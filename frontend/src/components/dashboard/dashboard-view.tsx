@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { StreamListSkeleton } from "../ui/Skeleton";
 
 /**
  * components/dashboard/dashboard-view.tsx
@@ -740,6 +741,7 @@ export function DashboardView({ session, onDisconnect }: DashboardViewProps) {
 
     // ── Overview ──────────────────────────────────────────────────────────
     if (activeTab === "overview") {
+
       return (
         <div className="dashboard-content-stack mt-8">
           {renderStats(snapshot)}

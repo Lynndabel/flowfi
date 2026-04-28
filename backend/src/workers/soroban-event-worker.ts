@@ -233,7 +233,7 @@ export class SorobanEventWorker {
    * Dispatch a single contract event to the appropriate handler based on the
    * first topic symbol.
    */
-  private async processEvent(
+  public async processEvent(
     event: rpc.Api.EventResponse,
   ): Promise<void> {
     if (!event.topic || event.topic.length < 2) return;
@@ -253,6 +253,12 @@ export class SorobanEventWorker {
         break;
       case 'tokens_withdrawn':
         await this.handleTokensWithdrawn(event, topic1);
+        break;
+      case 'stream_paused':
+        await this.handleStreamPaused(event, topic1);
+        break;
+      case 'stream_resumed':
+        await this.handleStreamResumed(event, topic1);
         break;
       case 'stream_cancelled':
         await this.handleStreamCancelled(event, topic1);
@@ -420,6 +426,88 @@ export class SorobanEventWorker {
       streamId,
       amount,
       newDepositedAmount,
+      transactionHash: event.txHash,
+      ledger: event.ledger,
+      timestamp,
+    });
+  }
+
+  private async handleStreamPaused(
+    event: rpc.Api.EventResponse,
+    streamIdTopic: xdr.ScVal,
+  ): Promise<void> {
+    const streamId = Number(decodeU64(streamIdTopic));
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    await prisma.$transaction(async (tx: any) => {
+      await tx.stream.update({
+        where: { streamId },
+        data: {
+          isPaused: true,
+          lastPausedAt: timestamp,
+        },
+      });
+
+      await tx.streamEvent.create({
+        data: {
+          streamId,
+          eventType: 'PAUSED',
+          transactionHash: event.txHash,
+          ledgerSequence: event.ledger,
+          timestamp,
+        },
+      });
+    });
+
+    sseService.broadcastToStream(String(streamId), 'stream.paused', {
+      streamId,
+      isPaused: true,
+      transactionHash: event.txHash,
+      ledger: event.ledger,
+      timestamp,
+    });
+  }
+
+  private async handleStreamResumed(
+    event: rpc.Api.EventResponse,
+    streamIdTopic: xdr.ScVal,
+  ): Promise<void> {
+    const streamId = Number(decodeU64(streamIdTopic));
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    await prisma.$transaction(async (tx: any) => {
+      const stream = await tx.stream.findUniqueOrThrow({
+        where: { streamId },
+        select: { totalPausedSeconds: true, lastPausedAt: true },
+      });
+
+      const lastPausedAt = stream.lastPausedAt ?? timestamp;
+      const pausedDuration = Math.max(0, timestamp - lastPausedAt);
+      const nextTotalPausedSeconds = stream.totalPausedSeconds + pausedDuration;
+
+      await tx.stream.update({
+        where: { streamId },
+        data: {
+          isPaused: false,
+          totalPausedSeconds: nextTotalPausedSeconds,
+          lastPausedAt: null,
+        },
+      });
+
+      await tx.streamEvent.create({
+        data: {
+          streamId,
+          eventType: 'RESUMED',
+          transactionHash: event.txHash,
+          ledgerSequence: event.ledger,
+          timestamp,
+        },
+      });
+    });
+
+    sseService.broadcastToStream(String(streamId), 'stream.resumed', {
+      streamId,
+      isPaused: false,
       transactionHash: event.txHash,
       ledger: event.ledger,
       timestamp,
