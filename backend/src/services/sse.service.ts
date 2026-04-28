@@ -12,6 +12,8 @@ interface SSEClient {
 
 const MAX_CONNECTIONS_PER_IP = 5;
 const RETRY_AFTER_SECONDS = 60;
+const HEARTBEAT_INTERVAL_MS = 30000; // 30 seconds
+const IDLE_TIMEOUT_MS = 300000; // 5 minutes
 
 interface SSECapacityCheckResult {
   allowed: boolean;
@@ -86,6 +88,71 @@ export class SSEService {
     });
 
     logger.info('[SSEService] Redis pub/sub subscription active.');
+  }
+
+  startHeartbeat(): void {
+    if (this.heartbeatTimer) return;
+
+    this.heartbeatTimer = setInterval(() => {
+      this.sendHeartbeat();
+      this.removeIdleConnections();
+    }, HEARTBEAT_INTERVAL_MS);
+
+    logger.info('[SSEService] Heartbeat started');
+  }
+
+  stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+      logger.info('[SSEService] Heartbeat stopped');
+    }
+  }
+
+  private sendHeartbeat(): void {
+    const heartbeatMessage = ': keep-alive\n\n';
+    let sentCount = 0;
+
+    for (const client of this.clients.values()) {
+      try {
+        client.res.write(heartbeatMessage);
+        sentCount++;
+      } catch (err) {
+        logger.warn(`[SSEService] Failed to send heartbeat to client ${client.id}:`, err);
+        // Remove client on write failure
+        this.removeClient(client.id);
+      }
+    }
+
+    if (sentCount > 0) {
+      logger.debug(`[SSEService] Sent heartbeat to ${sentCount} clients`);
+    }
+  }
+
+  private removeIdleConnections(): void {
+    const now = Date.now();
+    const idleClients: string[] = [];
+
+    for (const [clientId, client] of this.clients.entries()) {
+      if (now - client.lastActivityAt > IDLE_TIMEOUT_MS) {
+        idleClients.push(clientId);
+      }
+    }
+
+    if (idleClients.length > 0) {
+      logger.info(`[SSEService] Removing ${idleClients.length} idle connections`);
+      for (const clientId of idleClients) {
+        try {
+          const client = this.clients.get(clientId);
+          if (client) {
+            client.res.end();
+          }
+        } catch (err) {
+          logger.warn(`[SSEService] Error closing idle client ${clientId}:`, err);
+        }
+        this.removeClient(clientId);
+      }
+    }
   }
 
   checkCapacity(ip: string): SSECapacityCheckResult {
