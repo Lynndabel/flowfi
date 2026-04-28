@@ -92,12 +92,22 @@ npm install
 npm run dev
 ```
 
-### Smart Contracts
+### Deployment
+
+To build, optimize, and deploy the smart contract to a Stellar network, you can use the automated deployment script:
 
 ```bash
-cd contracts
-cargo build --target wasm32-unknown-unknown --release
+./scripts/deploy.sh --network testnet
 ```
+
+This single command will:
+1. Build the contract (`cargo build --target wasm32-unknown-unknown --release`)
+2. Optimize the WASM output
+3. Deploy the optimized contract to the specified network
+4. Initialize the contract with default settings
+5. Save the generated contract ID to `deployment-info.json`
+
+Supported networks include `testnet` and `mainnet`.
 
 ## API Documentation
 
