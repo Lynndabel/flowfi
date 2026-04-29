@@ -7,6 +7,8 @@ import {
   getStreamClaimableAmount,
   getUserStreamSummary
 } from '../../controllers/stream.controller.js';
+import { authMiddleware } from '../../middleware/auth.middleware.js';
+import { streamCreationRateLimiter } from '../../middleware/stream-rate-limiter.middleware.js';
 
 const router = Router();
 
@@ -18,13 +20,19 @@ const router = Router();
  *       - Streams
  *     summary: Create a new payment stream
  *     description: Creates a new payment stream on the Stellar network.
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       201:
  *         description: Stream created successfully
  *       400:
  *         description: Invalid input data
+ *       401:
+ *         description: Unauthorized - missing or invalid authentication token
+ *       429:
+ *         description: Too Many Requests - rate limit exceeded (10 requests per minute)
  */
-router.post('/', createStream);
+router.post('/', authMiddleware, streamCreationRateLimiter, createStream);
 
 /**
  * @openapi
