@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import LiveCounter from "@/components/Livecounter";
 import ProgressBar from "@/components/Progressbar";
+import TransactionTracker, {
+  type TransactionStatus,
+} from "@/components/TransactionTracker";
 import { Button } from "@/components/ui/Button";
 import toast from "react-hot-toast";
 import { useWallet } from "@/context/wallet-context";
@@ -16,7 +19,6 @@ import {
   resumeStream,
   toSorobanErrorMessage,
 } from "@/lib/soroban";
-import type { WalletSession } from "@/lib/wallet";
 
 interface StreamDetail {
   id: string;
@@ -49,6 +51,14 @@ export default function StreamDetailsPage() {
   const [resuming, setResuming] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [showTopUp, setShowTopUp] = useState(false);
+  const [pauseResumeStatus, setPauseResumeStatus] =
+    useState<TransactionStatus>("idle");
+  const [pauseResumeTxHash, setPauseResumeTxHash] = useState<string | undefined>(
+    undefined,
+  );
+  const [pauseResumeError, setPauseResumeError] = useState<string | undefined>(
+    undefined,
+  );
 
   // SSE integration for real-time stream updates
   const { events: streamEvents, connected, reconnecting } = useStreamEvents({
@@ -174,6 +184,19 @@ export default function StreamDetailsPage() {
     }
   };
 
+  const refetchStream = async () => {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(`${baseUrl}/v1/streams/${streamId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStream(data);
+      }
+    } catch (err) {
+      console.error("Failed to refresh stream:", err);
+    }
+  };
+
   const handlePause = async () => {
     if (!session) {
       toast.error("Please connect your wallet first");
@@ -181,13 +204,23 @@ export default function StreamDetailsPage() {
     }
 
     setPausing(true);
+    setPauseResumeError(undefined);
+    setPauseResumeTxHash(undefined);
+    setPauseResumeStatus("signing");
     try {
-      await pauseStream(session, { streamId: BigInt(streamId) });
-      toast.success("Stream paused successfully!");
-      // Refresh stream data
-      window.location.reload();
+      const result = await pauseStream(session, {
+        streamId: BigInt(streamId),
+      });
+      setPauseResumeTxHash(result.txHash);
+      setPauseResumeStatus("submitted");
+      toast.success("Stream pause submitted!");
+      await refetchStream();
+      setPauseResumeStatus("confirmed");
     } catch (err) {
-      toast.error(toSorobanErrorMessage(err));
+      const message = toSorobanErrorMessage(err);
+      setPauseResumeError(message);
+      setPauseResumeStatus("failed");
+      toast.error(message);
     } finally {
       setPausing(false);
     }
@@ -200,13 +233,23 @@ export default function StreamDetailsPage() {
     }
 
     setResuming(true);
+    setPauseResumeError(undefined);
+    setPauseResumeTxHash(undefined);
+    setPauseResumeStatus("signing");
     try {
-      await resumeStream(session, { streamId: BigInt(streamId) });
-      toast.success("Stream resumed successfully!");
-      // Refresh stream data
-      window.location.reload();
+      const result = await resumeStream(session, {
+        streamId: BigInt(streamId),
+      });
+      setPauseResumeTxHash(result.txHash);
+      setPauseResumeStatus("submitted");
+      toast.success("Stream resume submitted!");
+      await refetchStream();
+      setPauseResumeStatus("confirmed");
     } catch (err) {
-      toast.error(toSorobanErrorMessage(err));
+      const message = toSorobanErrorMessage(err);
+      setPauseResumeError(message);
+      setPauseResumeStatus("failed");
+      toast.error(message);
     } finally {
       setResuming(false);
     }
@@ -405,6 +448,23 @@ export default function StreamDetailsPage() {
                 }}
               />
               <Button onClick={handleTopUp}>Add Funds</Button>
+            </div>
+          )}
+
+          {pauseResumeStatus !== "idle" && (
+            <div style={{ marginTop: "1rem" }}>
+              <TransactionTracker
+                status={pauseResumeStatus}
+                txHash={pauseResumeTxHash}
+                error={pauseResumeError}
+                onRetry={
+                  pauseResumeStatus === "failed"
+                    ? stream.isPaused
+                      ? handleResume
+                      : handlePause
+                    : undefined
+                }
+              />
             </div>
           )}
         </div>

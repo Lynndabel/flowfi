@@ -7,6 +7,11 @@ import { BackendStreamEvent } from "@/lib/api-types";
 import { Button } from "@/components/ui/Button";
 import { Loader2 } from "lucide-react";
 
+const PAGE_SIZE = 10;
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+).replace(/\/+$/, "");
+
 const TABS = [
   { id: "ALL", label: "All" },
   { id: "CREATED", label: "Created" },
@@ -20,7 +25,7 @@ export default function ActivityPage() {
   const { session, status } = useWallet();
   const [events, setEvents] = useState<BackendStreamEvent[]>([]);
   const [activeTab, setActiveTab] = useState("ALL");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
@@ -30,23 +35,35 @@ export default function ActivityPage() {
       setLoading(true);
 
       try {
-        // Adjusting filter logic for the 'PAUSED' tab which includes RESUMED
+        // The 'PAUSED' tab is a UX shortcut that surfaces both PAUSED and RESUMED.
         const typeFilter = tab === "PAUSED" ? "PAUSED,RESUMED" : tab;
-        const query = tab === "ALL" ? "" : `&type=${typeFilter}`;
+        const typeQuery = tab === "ALL" ? "" : `&type=${encodeURIComponent(typeFilter)}`;
+        const url =
+          `${API_BASE_URL}/v1/events?address=${encodeURIComponent(session.publicKey)}` +
+          `&page=${pageNum}&limit=${PAGE_SIZE}${typeQuery}`;
 
-        const response = await fetch(
-          `/v1/events?address=${session.publicKey}&page=${pageNum}&limit=10${query}`,
-        );
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch activity (${response.status})`);
+        }
         const data = await response.json();
 
-        if (data.events) {
-          setEvents((prev) =>
-            append ? [...prev, ...data.events] : data.events,
-          );
-          setHasMore(data.events.length === 10);
+        const next: BackendStreamEvent[] = Array.isArray(data?.events)
+          ? data.events
+          : [];
+
+        setEvents((prev) => (append ? [...prev, ...next] : next));
+
+        // Prefer the server-provided hasMore; fall back to a length heuristic.
+        if (typeof data?.hasMore === "boolean") {
+          setHasMore(data.hasMore);
+        } else {
+          setHasMore(next.length === PAGE_SIZE);
         }
       } catch (error) {
         console.error("Failed to fetch activity:", error);
+        if (!append) setEvents([]);
+        setHasMore(false);
       } finally {
         setLoading(false);
       }
@@ -55,10 +72,9 @@ export default function ActivityPage() {
   );
 
   useEffect(() => {
-    if (status === "connected" && !loading) {
-      setPage(1);
-      fetchActivity(1, activeTab, false);
-    }
+    if (status !== "connected") return;
+    setPage(1);
+    fetchActivity(1, activeTab, false);
   }, [activeTab, status, fetchActivity]);
 
   const loadMore = () => {
