@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import LiveCounter from "@/components/Livecounter";
 import ProgressBar from "@/components/Progressbar";
 import { CancelStreamModal } from "@/components/streams/CancelStreamModal";
@@ -21,7 +23,6 @@ import {
   resumeStream,
   toSorobanErrorMessage,
 } from "@/lib/soroban";
-
 interface StreamDetail {
   id: string;
   sender: string;
