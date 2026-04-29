@@ -27,7 +27,7 @@ export class SSEService {
   private readonly ipConnectionCounts: Map<string, number> = new Map();
   private shuttingDown = false;
   private perIpPeakConnections = 0;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     this.startHeartbeat();
@@ -65,9 +65,9 @@ export class SSEService {
   }
 
   startHeartbeat(): void {
-    if (this.heartbeatTimer) return;
+    if (this.heartbeatInterval) return;
 
-    this.heartbeatTimer = setInterval(() => {
+    this.heartbeatInterval = setInterval(() => {
       this.sendHeartbeat();
       this.removeIdleConnections();
     }, HEARTBEAT_INTERVAL_MS);
@@ -76,9 +76,9 @@ export class SSEService {
   }
 
   stopHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
       logger.info('[SSEService] Heartbeat stopped');
     }
   }
@@ -192,9 +192,9 @@ export class SSEService {
 
   sendReconnectToAll(): void {
     this.shuttingDown = true;
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
     const message = 'event: reconnect\ndata: {}\n\n';
     for (const client of this.clients.values()) {

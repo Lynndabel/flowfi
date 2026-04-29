@@ -19,7 +19,7 @@ export interface BackendStreamEvent {
   streamId: number;
   eventType: StreamEventType;
   amount: string | null;
-  txHash: string;
+  transactionHash: string;
   ledgerSequence: number;
   timestamp: number;
   metadata: string | null;

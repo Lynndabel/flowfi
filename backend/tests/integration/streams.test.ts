@@ -5,11 +5,10 @@
  * a real Postgres or Redis instance. They verify that the indexer worker, stream
  * controller, SSE broadcast, and RPC fallback all wire up correctly end-to-end.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import { EventEmitter } from 'node:events';
 
-// ─── Mocks (must be hoisted before real imports) ──────────────────────────────
+// ─── Mocks (using vi.hoisted to ensure they are available to vi.mock) ─────────
 
 const { mockSseService, mockPrisma } = vi.hoisted(() => ({
   mockSseService: {

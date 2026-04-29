@@ -628,7 +628,6 @@ export class SorobanEventWorker {
       timestamp,
     });
   }
-
   private async handleStreamPaused(
     event: rpc.Api.EventResponse,
     streamIdTopic: xdr.ScVal,

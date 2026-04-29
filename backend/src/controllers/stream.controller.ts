@@ -92,10 +92,10 @@ export const createStream = async (req: Request, res: Response) => {
  */
 export const listStreams = async (req: Request, res: Response) => {
   try {
-    const { 
-      sender, 
-      recipient, 
-      status, 
+    const {
+      sender,
+      recipient,
+      status,
       token,
       sort = 'createdAt',
       order = 'desc',
@@ -112,7 +112,7 @@ export const listStreams = async (req: Request, res: Response) => {
     if (typeof status === 'string') {
       const validStatuses = ['active', 'cancelled', 'completed', 'paused'];
       if (!validStatuses.includes(status)) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Invalid status parameter',
           message: `status must be one of: ${validStatuses.join(', ')}`
         });
@@ -147,8 +147,8 @@ export const listStreams = async (req: Request, res: Response) => {
 
     // Validate sort field
     const validSortFields = ['createdAt', 'startTime', 'lastUpdateTime', 'depositedAmount', 'endTime'];
-    const sortField = validSortFields.includes(typeof sort === 'string' ? sort : 'createdAt') 
-      ? (sort as 'createdAt' | 'startTime' | 'lastUpdateTime' | 'depositedAmount' | 'endTime') 
+    const sortField = validSortFields.includes(typeof sort === 'string' ? sort : 'createdAt')
+      ? (sort as 'createdAt' | 'startTime' | 'lastUpdateTime' | 'depositedAmount' | 'endTime')
       : 'createdAt';
 
     // Validate order
@@ -170,9 +170,9 @@ export const listStreams = async (req: Request, res: Response) => {
 
     const hasMore = parsedOffset + streams.length < total;
 
-    return res.status(200).json({ 
-      data: streams, 
-      total, 
+    return res.status(200).json({
+      data: streams,
+      total,
       hasMore,
       limit: parsedLimit,
       offset: parsedOffset
@@ -402,8 +402,17 @@ export const getUserStreamSummary = async (req: Request<{ address: string }>, re
       prisma.stream.findMany({
         where: { sender: address },
         select: {
+          streamId: true,
+          ratePerSecond: true,
+          depositedAmount: true,
           withdrawnAmount: true,
+          startTime: true,
+          lastUpdateTime: true,
           isActive: true,
+          isPaused: true,
+          pausedAt: true,
+          totalPausedDuration: true,
+          updatedAt: true,
         },
       }),
       prisma.stream.findMany({
@@ -424,26 +433,34 @@ export const getUserStreamSummary = async (req: Request<{ address: string }>, re
       }),
     ]);
 
+    const calculatedAt = Math.floor(nowMs / 1000);
+
+    let claimableInTotal = 0n;
+    for (const stream of incomingStreams) {
+      const claimable = claimableAmountService.getClaimableAmount(stream, calculatedAt);
+      claimableInTotal += BigInt(claimable.claimableAmount);
+    }
+
+    let claimableOutTotal = 0n;
+    for (const stream of outgoingStreams) {
+      // Outgoing streams also need to account for what the recipient can currently claim
+      const claimable = claimableAmountService.getClaimableAmount(stream as any, calculatedAt);
+      claimableOutTotal += BigInt(claimable.claimableAmount);
+    }
+
     const totalStreamsCreated = outgoingStreams.length;
     const totalStreamedOut = sumStringI128(outgoingStreams.map((stream: any) => stream.withdrawnAmount));
     const totalStreamedIn = sumStringI128(incomingStreams.map((stream: any) => stream.withdrawnAmount));
+
     const activeOutgoingCount = outgoingStreams.filter((stream: any) => stream.isActive).length;
     const activeIncomingCount = incomingStreams.filter((stream: any) => stream.isActive).length;
-
-    const calculatedAt = Math.floor(nowMs / 1000);
-    let claimableTotal = 0n;
-    for (const stream of incomingStreams) {
-      if (!stream.isActive) continue;
-      const claimable = claimableAmountService.getClaimableAmount(stream, calculatedAt);
-      claimableTotal += BigInt(claimable.claimableAmount);
-    }
 
     const summary: UserStreamSummary = {
       address,
       totalStreamsCreated,
       totalStreamedOut,
       totalStreamedIn,
-      currentClaimable: claimableTotal.toString(),
+      currentClaimable: claimableInTotal.toString(),
       activeOutgoingCount,
       activeIncomingCount,
     };
@@ -467,7 +484,7 @@ export const getUserStreamSummary = async (req: Request<{ address: string }>, re
 export const pauseStream = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    
+
     if (!authReq.user) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
     }
@@ -492,7 +509,7 @@ export const pauseStream = async (req: Request, res: Response) => {
 
     // Verify the caller is the stream sender
     if (stream.sender !== authReq.user.publicKey) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Forbidden',
         message: 'Only the stream sender can pause the stream'
       });
@@ -569,7 +586,7 @@ export const pauseStream = async (req: Request, res: Response) => {
 export const resumeStream = async (req: Request, res: Response) => {
   try {
     const authReq = req as AuthenticatedRequest;
-    
+
     if (!authReq.user) {
       return res.status(401).json({ error: 'Unauthorized', message: 'Authentication required' });
     }
@@ -594,7 +611,7 @@ export const resumeStream = async (req: Request, res: Response) => {
 
     // Verify the caller is the stream sender
     if (stream.sender !== authReq.user.publicKey) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Forbidden',
         message: 'Only the stream sender can resume the stream'
       });
@@ -636,7 +653,7 @@ export const resumeStream = async (req: Request, res: Response) => {
           transactionHash: result.txHash,
           ledgerSequence: 0, // Will be updated by event indexer
           timestamp: now,
-          metadata: JSON.stringify({ 
+          metadata: JSON.stringify({
             resumedBy: authReq.user.publicKey,
             pauseDuration,
           }),

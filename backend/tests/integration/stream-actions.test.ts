@@ -228,14 +228,14 @@ describe('stream action routes', () => {
       success: true,
       streamId: 11,
       txHash: 'withdraw-tx-hash',
-      amount: '500',
+      amount: '100',
     });
     expect(mockWithdrawStream).toHaveBeenCalledWith(recipient.publicKey(), 11);
     expect(mockPrisma.streamEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           eventType: 'WITHDRAWN',
-          amount: '500',
+          amount: '100',
           transactionHash: 'withdraw-tx-hash',
         }),
       }),

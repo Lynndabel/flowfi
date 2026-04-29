@@ -8,7 +8,13 @@ const mockTx = {
   stream: {
     upsert: vi.fn().mockResolvedValue({}),
     update: vi.fn().mockResolvedValue({}),
-    findUniqueOrThrow: vi.fn().mockResolvedValue({ withdrawnAmount: '0' }),
+    findUniqueOrThrow: vi.fn().mockResolvedValue({
+      withdrawnAmount: '0',
+      ratePerSecond: '100',
+      startTime: 1700000000,
+      totalPausedDuration: 0,
+      pausedAt: null
+    }),
   },
   streamEvent: { create: vi.fn().mockResolvedValue({}) },
 };
@@ -409,6 +415,25 @@ describe('handleStreamPaused', () => {
           isPaused: true,
           pausedAt: 1_777_379_696,
           lastUpdateTime: 1_777_379_696,
+        }),
+      }),
+    );
+  });
+
+  it('sets isPaused to false on resume', async () => {
+    const { event, topic1 } = fakeEvent('stream_resumed', 77n, [
+      ['sender', scvAccountAddress(SENDER_PUB)],
+      ['new_end_time', scvU64(1700003600n)],
+    ]);
+
+    await worker.handleStreamResumed(event, topic1);
+
+    expect(mockTx.stream.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { streamId: 77 },
+        data: expect.objectContaining({
+          isPaused: false,
+          endTime: 1700003600,
         }),
       }),
     );
