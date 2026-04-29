@@ -261,7 +261,7 @@ export const getStreamEvents = async (req: Request, res: Response) => {
           message: `eventType must be one of: ${validEventTypes.join(', ')}`
         });
       }
-      whereClause.type = eventType;
+      whereClause.eventType = eventType;
     }
 
     const [events, total] = await Promise.all([
@@ -394,8 +394,17 @@ export const getUserStreamSummary = async (req: Request<{ address: string }>, re
       prisma.stream.findMany({
         where: { sender: address },
         select: {
+          streamId: true,
+          ratePerSecond: true,
+          depositedAmount: true,
           withdrawnAmount: true,
+          startTime: true,
+          lastUpdateTime: true,
           isActive: true,
+          isPaused: true,
+          pausedAt: true,
+          totalPausedDuration: true,
+          updatedAt: true,
         },
       }),
       prisma.stream.findMany({
@@ -416,26 +425,34 @@ export const getUserStreamSummary = async (req: Request<{ address: string }>, re
       }),
     ]);
 
+    const calculatedAt = Math.floor(nowMs / 1000);
+    
+    let claimableInTotal = 0n;
+    for (const stream of incomingStreams) {
+      const claimable = claimableAmountService.getClaimableAmount(stream, calculatedAt);
+      claimableInTotal += BigInt(claimable.claimableAmount);
+    }
+
+    let claimableOutTotal = 0n;
+    for (const stream of outgoingStreams) {
+      // Outgoing streams also need to account for what the recipient can currently claim
+      const claimable = claimableAmountService.getClaimableAmount(stream as any, calculatedAt);
+      claimableOutTotal += BigInt(claimable.claimableAmount);
+    }
+
     const totalStreamsCreated = outgoingStreams.length;
     const totalStreamedOut = sumStringI128(outgoingStreams.map((stream: any) => stream.withdrawnAmount));
     const totalStreamedIn = sumStringI128(incomingStreams.map((stream: any) => stream.withdrawnAmount));
+
     const activeOutgoingCount = outgoingStreams.filter((stream: any) => stream.isActive).length;
     const activeIncomingCount = incomingStreams.filter((stream: any) => stream.isActive).length;
-
-    const calculatedAt = Math.floor(nowMs / 1000);
-    let claimableTotal = 0n;
-    for (const stream of incomingStreams) {
-      if (!stream.isActive) continue;
-      const claimable = claimableAmountService.getClaimableAmount(stream, calculatedAt);
-      claimableTotal += BigInt(claimable.claimableAmount);
-    }
 
     const summary: UserStreamSummary = {
       address,
       totalStreamsCreated,
       totalStreamedOut,
       totalStreamedIn,
-      currentClaimable: claimableTotal.toString(),
+      currentClaimable: claimableInTotal.toString(),
       activeOutgoingCount,
       activeIncomingCount,
     };
