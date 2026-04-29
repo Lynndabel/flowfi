@@ -2,7 +2,7 @@
  * Redis / In-Memory Cache Service
  * Used for horizontal SSE scaling and claimable amount caching (Issue #377)
  */
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import logger from '../logger.js';
 
 const REDIS_URL = process.env.REDIS_URL;
