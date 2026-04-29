@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import LiveCounter from "@/components/Livecounter";
 import ProgressBar from "@/components/Progressbar";
 import { CancelStreamModal } from "@/components/streams/CancelStreamModal";
@@ -56,11 +54,8 @@ export default function StreamDetailsPage() {
   const [withdrawStatus, setWithdrawStatus] = useState<TransactionStatus>("idle");
   const [withdrawError, setWithdrawError] = useState<string | undefined>();
   const { cancel: cancelStream, isPending: cancelling } = useCancelStream<StreamDetail>();
-  const [cancelling, setCancelling] = useState(false);
   const [pausing, setPausing] = useState(false);
   const [resuming, setResuming] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState("");
-  const [showTopUp, setShowTopUp] = useState(false);
   const [pauseResumeStatus, setPauseResumeStatus] =
     useState<TransactionStatus>("idle");
   const [pauseResumeTxHash, setPauseResumeTxHash] = useState<string | undefined>(
