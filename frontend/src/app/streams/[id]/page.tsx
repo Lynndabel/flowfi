@@ -398,13 +398,12 @@ export default function StreamDetailsPage() {
           <div className="dashboard-panel__header">
             <h3>Claimable Balance</h3>
           </div>
-          <LiveCounter 
-            initial={claimable} 
-            label="Available to withdraw" 
-            isPaused={stream.isPaused} 
+          <LiveCounter
+            initial={displayedClaimable}
+            label="Available to withdraw"
+            isPaused={stream.isPaused}
             pausedAt={stream.pausedAt}
           />
-          <LiveCounter initial={displayedClaimable} label="Available to withdraw" />
         </div>
 
         {/* Actions */}
