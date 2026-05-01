@@ -47,10 +47,16 @@ vi.mock('../../src/lib/prisma.js', () => ({
   prisma: mockPrisma,
 }));
 
-vi.mock('../../src/services/sorobanService.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/services/sorobanService.js')>();
-  return { ...actual, topUpStream: vi.fn().mockResolvedValue('abc123txhash') };
-});
+vi.mock('../../src/services/sorobanService.js', () => ({
+  getStreamFromChain: vi.fn().mockResolvedValue(null),
+  getClaimableFromChain: vi.fn().mockResolvedValue(null),
+  isStale: vi.fn().mockReturnValue(false),
+  topUpStream: vi.fn().mockResolvedValue('abc123txhash'),
+  pauseStream: vi.fn(),
+  resumeStream: vi.fn(),
+  withdrawStream: vi.fn(),
+  cancelStream: vi.fn(),
+}));
 
 vi.mock('../../src/middleware/auth.middleware.js', () => ({
   authMiddleware: vi.fn((req: any, _res: any, next: any) => {
