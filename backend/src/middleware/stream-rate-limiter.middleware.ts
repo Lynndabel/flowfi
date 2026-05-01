@@ -36,14 +36,9 @@ export function createStreamRateLimiter(
      * KeyGenerator: Use wallet address as the rate limit key
      * For authenticated requests, use the wallet's public key
      */
-    keyGenerator: (req: Request, res: Response): string => {
+    keyGenerator: (req: Request): string => {
       const authReq = req as AuthenticatedRequest;
-      if (authReq.user?.publicKey) {
-        return authReq.user.publicKey; // Use wallet address as key
-      }
-      // Fallback to IP if not authenticated (shouldn't happen for protected endpoints).
-      // Normalize IPv6 addresses
-      return req.ip ? req.ip.replace(/^::ffff:/, '') : 'unknown';
+      return authReq.user?.publicKey ?? 'unauthenticated';
     },
     /**
      * Skip rate limiting for non-authenticated requests

@@ -1,5 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
+
+vi.mock('../src/middleware/auth.middleware.js', () => ({
+  authMiddleware: (req: any, _res: any, next: any) => {
+    req.user = { publicKey: 'GTEST_USER_PUBLIC_KEY' };
+    next();
+  },
+  optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
+}));
+
+vi.mock('../src/middleware/stream-rate-limiter.middleware.js', () => ({
+  streamCreationRateLimiter: (_req: any, _res: any, next: any) => next(),
+}));
+
 import app from '../src/app.js';
 
 // Mock Prisma so tests don't require a real DB connection
