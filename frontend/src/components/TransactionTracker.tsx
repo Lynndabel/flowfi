@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Loader2, CheckCircle, XCircle, ExternalLink, RefreshCw, Clock, Ban, FileSearch } from "lucide-react";
 import toast from "react-hot-toast";
 import type { BackendStream } from "@/lib/api-types";
@@ -386,7 +386,7 @@ function checkConfirmation(
 
 // Helper function to render changes between stream states
 function renderChanges(prev: BackendStream, current: BackendStream) {
-  const changes: JSX.Element[] = [];
+  const changes: React.JSX.Element[] = [];
 
   if (prev.depositedAmount !== current.depositedAmount) {
     const diff = BigInt(current.depositedAmount) - BigInt(prev.depositedAmount);

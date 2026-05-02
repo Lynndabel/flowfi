@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, Check, LogOut, Moon, Sun, Bell, Globe } from "lucide-react";
-import { STELLAR_NETWORK } from "@/lib/wallet";
+import { STELLAR_NETWORK, shortenPublicKey } from "@/lib/wallet";
 import { useWallet } from "@/context/wallet-context";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
