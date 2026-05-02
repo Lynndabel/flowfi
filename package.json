@@ -13,7 +13,6 @@
     "verify-security": "node scripts/verify-security-setup.js"
   },
   "devDependencies": {
-    "@types/eventsource": "^1.1.15",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7"
   },
