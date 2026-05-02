@@ -491,5 +491,3 @@ export function useTransactionTracker() {
     cancel,
   };
 }
-
-export default TransactionTracker;
